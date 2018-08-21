@@ -1,0 +1,223 @@
+---
+title: "OOP Examples"
+output: html_document
+---
+
+
+
+
+Object oriented programming is a broadly used way of orginizing code. The benefits of 
+adopting the OOP design patter are that the code becomes modular, and easier to maintain. 
+Developers can test code independently by instantiating each class independently.
+
+To create class objects in R we use a package called R6. This package like many other packages needs
+to be installed. Go to Tools->Install Package and search for R6
+```{r}
+library(R6)
+```
+To model a class we start by creating a variable to store the class object and we assign it a name.
+This class is named "MyFirstClass". 
+```{r}
+MyFirstClass = R6Class("MyFirstClass")
+```
+But this class doesn't do anything yet. We need to add attributes to give it life. So lets add a 
+public method and a private variable. Private and Public attributes are used to control scope. We'll 
+go into encapsulation later.
+```{r}
+MyFirstClass = R6Class("MyFirstClass",
+  private=list(
+    im_a_private_variable = 'Hi' # this attribute is protected
+  ),
+  public=list(
+    im_a_public_function = function() { return(private$im_a_private_variable)} # public method returns the private variable
+  )
+)
+```
+
+
+
+
+
+
+
+
+OOP has many guidelines to help develpers write OO programs, but the four main principles 
+to follow are encapsulation, abstraction, inheritance, and polymorphism.
+
+Encapsulation is simply a way to protect/hide attributes by limiting the scope. 
+```{r}
+MyFirstClass = R6Class("MyFirstClass",
+  private=list(
+    im_a_private_variable = 'Hi'
+  ),
+  public=list(
+    im_a_public_function = function() { return(private$im_a_private_variable)}
+  )
+)
+
+test_class <- MyFirstClass$new()
+```
+
+In the example above we have a class with a private variable and public method. If we try to 
+view the contents of the private variable we get a NULL value. From looking at the code we can
+see that the variable is initialized with the word "Hi". So why can't we access the value? it's 
+because of it's scope. The class knows the value but it won't share it's value externally 
+because it's listed as a private variable.
+```{r}
+test_class$im_a_private_variable
+```
+
+to access the value we need to call the public method im_a_public_function(). Some languages have
+designated functions to set and set class attributes. The methods are properly refered to as 
+getters and setters
+```{r}
+test_class$im_a_public_function()
+```
+
+
+
+
+
+
+
+
+Abstraction is done by limiting access to business logic. It's an extension of encapsulation. 
+in other words you can achive abstraction by limiting the access to functional logic through scope.
+```{r}
+TestClass = R6Class("TestClass",
+  private=list(
+    im_a_private_variable = NULL,
+    set_private_variable_with_this_private_method = function(value) {
+      private$im_a_private_variable = value
+    }
+  ),
+  public=list(
+    im_a_public_function = function() { return(private$im_a_private_variable)},
+    initialize = function(value_received) {
+      private$set_private_variable_with_this_private_method(value_received)
+    }
+  )
+)
+
+test_class <- TestClass$new('Hello world')
+```
+The initialize method will take the values passed to the class and initialize variables for us. in 
+the example above we provided the function a string "Hello World" and the initialize method set the value 
+of our private attribute. if we call the method im_a_public_function() to view the private variable.
+```{r}
+test_class$im_a_public_function()
+```
+
+
+
+
+
+
+
+
+Inheritance is a way to extend the properties of one class (parent) to other class (child). This 
+is useful when dealing with objects with common characteristics. For example let's say you're working on
+a class to represent dogs (male and femal). You can create a class to model the dog with the folowing 
+attributes, breed, fur_type, size. You can create two separate classes to model male and female 
+characteristics. This becomes useful because when creating an instance of a male/female dog, the 
+instance can inherit the attributes of the dog class.
+
+Let's look at and example from the R6 library documentation. The HistoryQueue class inherits 
+from Queue. From HistoryQueue we can access attributes from the Queue instance (private and public attributes).
+```{r}
+Queue <- R6Class("Queue",
+  public = list(
+    initialize = function(...) {
+      for (item in list(...)) {
+        self$add(item)
+      }
+    },
+    add = function(x) {
+      private$queue <- c(private$queue, list(x))
+      invisible(self)
+    },
+    remove = function() {
+      if (private$length() == 0) return(NULL)
+      # Can use private$queue for explicit access
+      head <- private$queue[[1]]
+      private$queue <- private$queue[-1]
+      head
+    }
+  ),
+  private = list(
+    queue = list(),
+    length = function() base::length(private$queue)
+  )
+)
+
+# Note that this isn't very efficient - it's just for illustrating inheritance.
+HistoryQueue <- R6Class("HistoryQueue",
+  inherit = Queue,
+  public = list(
+    show = function() {
+      cat("Next item is at index", private$head_idx + 1, "\n")
+      for (i in seq_along(  private$queue )) {
+        cat(i, ": ", private$queue[[i]], "\n", sep = "")
+      }
+    },
+    remove = function() {
+      if (private$length() - private$head_idx == 0) return(NULL)
+      private$head_idx <<- private$head_idx + 1
+      private$queue[[private$head_idx]]
+    }
+  ),
+  private = list(
+    head_idx = 0
+  )
+)
+
+hq <- HistoryQueue$new(5, 6, "foo")
+hq$show()
+hq$remove()
+hq$show()
+hq$remove()
+```
+
+
+
+
+
+
+
+
+Polymorphism is by far the hardest principle to understand and implement. The idea is that the class can change it's
+form based on the information used to instantiate it. If we go back to the example of the dog class
+we can ensure that the male and female classes can use the parent dog class by ensuring the initialization
+is the same for both instances.
+
+https://stackoverflow.com/questions/35414576/multiple-inheritance-for-r6-classes
+```{r}
+IBar <- R6Class("IBar",
+  public = list(doSomething = function(n = 1) stop("I'm the inferace method"))
+)
+Bar <- R6Class("Bar", inherit = IBar,
+  public = list(doSomething = function(n = 1) private$x[1:n]),
+  private = list(x = letters)
+)
+Baz <- R6Class("Baz", inherit = IBar,
+  public = list(doSomething = function(n = 1) private$x[1:n]),
+  private = list(x = 1:24)
+)
+Foo <- R6Class("Foo",
+  public = list(bar = IBar$new())
+)
+
+inst <- Foo$new()
+inst$bar <- Bar$new()
+class(inst$bar)
+inst$bar$doSomething(5)
+inst$bar <- Baz$new()
+inst$bar$doSomething(5)
+```
+This is a quote from the stackoverflow post:
+https://stackoverflow.com/questions/35414576/multiple-inheritance-for-r6-classes
+A bit more on why this makes sense with regard to OOD: Foo should be completely agnostic of the the way the object stored in field bar is implemented. All it needs to know is which methods it can call on that object. And in order to know that, it's enough to know the interface that the object in field  bar implements (IBar with method doSomething(), in our case).
+- Rappster
+
+
+
